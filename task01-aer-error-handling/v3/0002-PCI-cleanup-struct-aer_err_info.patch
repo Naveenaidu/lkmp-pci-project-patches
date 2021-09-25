@@ -1,0 +1,62 @@
+From caedc31ecbfd4ba30114855e22a78fd670514db5 Mon Sep 17 00:00:00 2001
+Message-Id: <caedc31ecbfd4ba30114855e22a78fd670514db5.1632492057.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632492057.git.naveennaidu479@gmail.com>
+References: <cover.1632492057.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Sat, 18 Sep 2021 23:54:31 +0530
+Subject: [PATCH v3 2/8] PCI: cleanup struct aer_err_info
+To: helgaas@kernel.org
+
+The id, status and the mask fields of the struct aer_err_info comes
+directly from the registers, hence their sizes should be explicit.
+
+The length of these registers are:
+  - id: 16 bits - Represents the Error Source Requester ID
+  - status: 32 bits - COR/UNCOR Error Status
+  - mask: 32 bits - COR/UNCOR Error Mask
+
+Since the length of the above registers are even, use u16 and u32
+to represent their values.
+
+Also combine both the __pad fields to pack the 7 bit hole.
+
+"pahole" was run on the modified struct aer_err_info and the size
+remains unchanged with no holes to pack
+
+Fixes: 273024ded7b3 ("PCI: pcie, aer: flags to bits")
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pci.h | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/pci/pci.h b/drivers/pci/pci.h
+index 1cce56c2aea0..3b75751c03d4 100644
+--- a/drivers/pci/pci.h
++++ b/drivers/pci/pci.h
+@@ -427,18 +427,17 @@ struct aer_err_info {
+ 	struct pci_dev *dev[AER_MAX_MULTI_ERR_DEVICES];
+ 	int error_dev_num;
+ 
+-	unsigned int id:16;
++	u16	id;
+ 
+ 	unsigned int severity:2;	/* 0:NONFATAL | 1:FATAL | 2:COR */
+-	unsigned int __pad1:5;
+ 	unsigned int multi_error_valid:1;
++	unsigned int __pad:7;
+ 
+ 	unsigned int first_error:5;
+-	unsigned int __pad2:2;
+ 	unsigned int tlp_header_valid:1;
+ 
+-	unsigned int status;		/* COR/UNCOR Error Status */
+-	unsigned int mask;		/* COR/UNCOR Error Mask */
++	u32 status;		/* COR/UNCOR Error Status */
++	u32 mask;		/* COR/UNCOR Error Mask */
+ 	struct aer_header_log_regs tlp;	/* TLP Header */
+ };
+ 
+-- 
+2.25.1
+

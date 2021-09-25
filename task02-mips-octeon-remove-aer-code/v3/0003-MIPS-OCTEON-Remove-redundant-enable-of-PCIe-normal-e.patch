@@ -1,0 +1,45 @@
+From c28f013abb8e978e038434bced42d98a40105ee7 Mon Sep 17 00:00:00 2001
+Message-Id: <c28f013abb8e978e038434bced42d98a40105ee7.1632422553.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632422553.git.naveennaidu479@gmail.com>
+References: <cover.1632422553.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Thu, 23 Sep 2021 22:11:57 +0530
+Subject: [PATCH v3 3/6] MIPS: OCTEON: Remove redundant enable of PCIe normal error reporting
+To: helgaas@kernel.org
+
+e8635b484f64 ("MIPS: Add Cavium OCTEON PCI support.") added MIPS
+specific code to enable PCIe and AER error reporting (*irrespective
+of CONFIG_PCIEAER value*) because PCI core didn't do that at the time.
+
+Currently when CONFIG_PCIEAER=y, the PCIe normal error reporting is
+enabled by pci_enable_pcie_error_reporting() in the aer_probe() path.
+
+It is now no longer necessary for Octeon code to enable PCIe normal
+error since it's done when PCIe bus loads the AER service driver.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ arch/mips/pci/pci-octeon.c | 7 -------
+ 1 file changed, 7 deletions(-)
+
+diff --git a/arch/mips/pci/pci-octeon.c b/arch/mips/pci/pci-octeon.c
+index 8e8b282226cc..2c251018075c 100644
+--- a/arch/mips/pci/pci-octeon.c
++++ b/arch/mips/pci/pci-octeon.c
+@@ -114,13 +114,6 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
+ 		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, config);
+ 	}
+ 
+-	/* Enable the PCIe normal error reporting */
+-	config = PCI_EXP_DEVCTL_CERE; /* Correctable Error Reporting */
+-	config |= PCI_EXP_DEVCTL_NFERE; /* Non-Fatal Error Reporting */
+-	config |= PCI_EXP_DEVCTL_FERE;	/* Fatal Error Reporting */
+-	config |= PCI_EXP_DEVCTL_URRE;	/* Unsupported Request */
+-	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, config);
+-
+ 	/* Find the Advanced Error Reporting capability */
+ 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+ 	if (pos) {
+-- 
+2.25.1
+

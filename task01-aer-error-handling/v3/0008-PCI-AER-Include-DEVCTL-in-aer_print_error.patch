@@ -1,0 +1,62 @@
+From cc8a3a3fe32ac83d3f874c7af5c9576a17c8a37a Mon Sep 17 00:00:00 2001
+Message-Id: <cc8a3a3fe32ac83d3f874c7af5c9576a17c8a37a.1632492057.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632492057.git.naveennaidu479@gmail.com>
+References: <cover.1632492057.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 21 Sep 2021 19:11:17 +0530
+Subject: [PATCH v3 8/8] PCI/AER: Include DEVCTL in aer_print_error()
+To: helgaas@kernel.org
+
+Print the content of Device Control Register of the device which
+detected the error. This might help in faster error diagnosis.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pci.h      |  2 ++
+ drivers/pci/pcie/aer.c | 10 ++++++++--
+ 2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/pci/pci.h b/drivers/pci/pci.h
+index 3a234e69f1e5..131741c8b3b7 100644
+--- a/drivers/pci/pci.h
++++ b/drivers/pci/pci.h
+@@ -438,6 +438,8 @@ struct aer_err_info {
+ 	u32 status;		/* COR/UNCOR Error Status */
+ 	u32 mask;		/* COR/UNCOR Error Mask */
+ 	struct aer_header_log_regs tlp;	/* TLP Header */
++
++	u16 devctl;
+ };
+ 
+ /* Preliminary AER error information processed from Root port */
+diff --git a/drivers/pci/pcie/aer.c b/drivers/pci/pcie/aer.c
+index bd1ae048d359..49ab3a783f67 100644
+--- a/drivers/pci/pcie/aer.c
++++ b/drivers/pci/pcie/aer.c
+@@ -729,8 +729,8 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
+ 		   aer_error_severity_string[info->severity],
+ 		   aer_error_layer[layer], aer_agent_string[agent]);
+ 
+-	pci_printk(level, dev, "  device [%04x:%04x] error status/mask=%08x/%08x\n",
+-		   dev->vendor, dev->device, info->status, info->mask);
++	pci_printk(level, dev, "  device [%04x:%04x] error status/mask=%08x/%08x\n, devctl=%#06x",
++		   dev->vendor, dev->device, info->status, info->mask, info->devctl);
+ 
+ 	__aer_print_error(dev, info);
+ 
+@@ -1083,6 +1083,12 @@ int aer_get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
+ 	if (!aer)
+ 		return 0;
+ 
++	/*
++	 * Cache the value of Device Control Register now, because later the
++	 * device might not be available
++	 */
++	pcie_capability_read_word(dev, PCI_EXP_DEVCTL, &info->devctl);
++
+ 	if (info->severity == AER_CORRECTABLE) {
+ 		pci_read_config_dword(dev, aer + PCI_ERR_COR_STATUS,
+ 			&info->status);
+-- 
+2.25.1
+

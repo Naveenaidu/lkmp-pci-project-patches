@@ -1,0 +1,48 @@
+From 8000451da35823845887d2c6a8bd76618c55911e Mon Sep 17 00:00:00 2001
+Message-Id: <cover.1632422553.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Fri, 24 Sep 2021 00:12:33 +0530
+Subject: [PATCH v3 0/6] MIPS: OCTEON: Remove redundant AER code
+To: helgaas@kernel.org
+
+e8635b484f64 ("MIPS: Add Cavium OCTEON PCI support.") added MIPS
+specific code to enable PCIe and AER error reporting (*irrespective
+of CONFIG_PCIEAER value*) because PCI core didn't do that at the time.
+
+But currently, the PCI core clears and enables the AER status registers.
+So it's redundant for octeon code to do so. This patch series removes
+the redundant code from the pci-octeon.c
+
+Currently, the correctable and uncorrectable AER mask registers are not 
+set to their default value when AER service driver is loaded. This
+defect is also fixed in the "[PATCH 1/6]" in the series.
+
+Thanks,
+Naveen
+
+Changelog
+=========
+  
+  v2:
+    - Shorten the commit message and make it brief
+
+  v3:
+    - Split the change into atomic commits
+    - Add a patch to make PCI enable COR/UNCOR error reporting when 
+      AER service driver loads
+
+Naveen Naidu (6):
+  [PATCH 1/6] PCI/AER: Enable COR/UNCOR error reporting in set_device_error_reporting()
+  [PATCH 2/6] MIPS: OCTEON: Remove redundant clearing of AER status registers
+  [PATCH 3/6] MIPS: OCTEON: Remove redundant enable of PCIe normal error reporting
+  [PATCH 4/6] MIPS: OCTEON: Remove redundant enable of COR/UNCOR error
+  [PATCH 5/6] MIPS: OCTEON: Remove redundant ECRC Generation Enable
+  [PATCH 6/6] MIPS: OCTEON: Remove redundant enable of RP error reporting
+
+ arch/mips/pci/pci-octeon.c | 50 --------------------------------------
+ drivers/pci/pcie/aer.c     |  9 +++++++
+ 2 files changed, 9 insertions(+), 50 deletions(-)
+
+-- 
+2.25.1
+

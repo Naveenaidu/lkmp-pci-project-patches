@@ -1,0 +1,63 @@
+From 305df5ca2bb136343e17951989c616b2c1bf15f7 Mon Sep 17 00:00:00 2001
+Message-Id: <cover.1632081616.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Mon, 20 Sep 2021 01:30:16 +0530
+Subject: [LKMP] [PATCH 0/6] Fix long standing AER Error Handling Issues
+To: Bjorn Helgaas <helgaas@kernel.org>
+
+This patch series aims at fixing some of the AER error handling issues
+we have.
+
+Currently we have the following issues:
+ - Confusing message in aer_print_error()
+ - aer_err_info not being initialized completely in DPC path before 
+   we print the AER logs
+ - A bug [1] in clearing of AER registers in the native AER path
+
+[1] https://lore.kernel.org/linux-pci/20151229155822.GA17321@localhost/
+
+The patch series fixes the above things. But at the same time, the
+primary aim of this patch series is to converge the APEI path and the
+native AER error handling paths. In our current code, we find that we
+have two different behaviours (especially when it comes to clearing of
+the AER registers) for the same functionality.
+
+This patch series, tries to bring the same semantics and hence more 
+commonanlity between the APEI part of code and the native OS 
+handling of AER errors.
+
+PATCH 1: 
+  - Fixes the first issue
+  - This patch is independent of other patches and can be applied
+    seperately
+
+PATCH 2 - 3:
+  - Fixes the second issue
+  - Patch 3 is depended on Patch 2 in the series
+
+PATCH 4 - 6
+  - Deals with converging the various paths and to bring more
+    commonality between them
+
+All the patches have been "compile-tested" only.
+
+Thanks,
+Naveen Naidu
+
+Naveen Naidu (6):
+ [PATCH 1/6] PCI/AER: Remove ID from aer_agent_string[]
+ [PATCH 2/6] PCI: cleanup struct aer_err_info
+ [PATCH 3/6] PCI/DPC: Initialize info->id in dpc_process_error()
+ [PATCH 4/6] PCI/DPC: Converge EDR and DPC Path of clearing AER registers
+ [PATCH 5/6] PCI/AER: Clear error device AER registers in aer_irq()
+ [PATCH 6/6] PCI/ERR: Remove redundant clearing of AER register in pcie_do_recovery()
+
+ drivers/pci/pci.h      |  21 +++--
+ drivers/pci/pcie/aer.c | 208 ++++++++++++++++++++++++++---------------
+ drivers/pci/pcie/dpc.c |   9 +-
+ drivers/pci/pcie/err.c |   9 +-
+ 4 files changed, 155 insertions(+), 92 deletions(-)
+
+-- 
+2.25.1
+

@@ -1,0 +1,70 @@
+From 62ac8d3365ca2716316c57fa0f96e864c60f52bd Mon Sep 17 00:00:00 2001
+Message-Id: <62ac8d3365ca2716316c57fa0f96e864c60f52bd.1632081616.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632081616.git.naveennaidu479@gmail.com>
+References: <cover.1632081616.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Sun, 19 Sep 2021 01:35:40 +0530
+Subject: [PATCH 3/6] PCI/DPC: Initialize info->id in dpc_process_error()
+To: Bjorn Helgaas <helgaas@kernel.org> 
+
+In the dpc_process_error() path, info->id isn't initialized before being
+passed to aer_print_error(). In the corresponding AER path, it is
+initialized in aer_isr_one_error().
+
+The error message shown during Coverity Scan is:
+> Coverity #1461602
+> CID 1461602 (#1 of 1): Uninitialized scalar variable (UNINIT)
+> 8. uninit_use_in_call: Using uninitialized value info.id when calling
+> aer_print_error.
+
+Remove the source variable in dpc_process_error() because we could use
+the info.id field to store the value.
+
+Fixes: 8aefa9b0d910 ("PCI/DPC: Print AER status in DPC event handling")
+
+Since pci_aer_clear_status() clears both the fatal and non fatal
+registers, use this instead of individually calling
+pci_aer_clear_nonfatal_status() and pci_aer_clear_fatal_status()
+
+Fixes: 9f08a5d896ce ("PCI/DPC: Fix print AER status in DPC event handling")
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pcie/dpc.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/pci/pcie/dpc.c b/drivers/pci/pcie/dpc.c
+index c556e7beafe3..faf4a1e77fab 100644
+--- a/drivers/pci/pcie/dpc.c
++++ b/drivers/pci/pcie/dpc.c
+@@ -262,14 +262,14 @@ static int dpc_get_aer_uncorrect_severity(struct pci_dev *dev,
+ 
+ void dpc_process_error(struct pci_dev *pdev)
+ {
+-	u16 cap = pdev->dpc_cap, status, source, reason, ext_reason;
++	u16 cap = pdev->dpc_cap, status, reason, ext_reason;
+ 	struct aer_err_info info;
+ 
+ 	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &status);
+-	pci_read_config_word(pdev, cap + PCI_EXP_DPC_SOURCE_ID, &source);
++	pci_read_config_word(pdev, cap + PCI_EXP_DPC_SOURCE_ID, &info.id);
+ 
+ 	pci_info(pdev, "containment event, status:%#06x source:%#06x\n",
+-		 status, source);
++		 status, info.id);
+ 
+ 	reason = (status & PCI_EXP_DPC_STATUS_TRIGGER_RSN) >> 1;
+ 	ext_reason = (status & PCI_EXP_DPC_STATUS_TRIGGER_RSN_EXT) >> 5;
+@@ -288,8 +288,7 @@ void dpc_process_error(struct pci_dev *pdev)
+ 		 dpc_get_aer_uncorrect_severity(pdev, &info) &&
+ 		 aer_get_device_error_info(pdev, &info)) {
+ 		aer_print_error(pdev, &info);
+-		pci_aer_clear_nonfatal_status(pdev);
+-		pci_aer_clear_fatal_status(pdev);
++		pci_aer_clear_status(pdev);
+ 	}
+ }
+ 
+-- 
+2.25.1
+

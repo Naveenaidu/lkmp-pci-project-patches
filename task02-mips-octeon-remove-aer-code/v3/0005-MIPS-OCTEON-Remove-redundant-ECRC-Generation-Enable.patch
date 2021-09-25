@@ -1,0 +1,47 @@
+From f79ffec6513a1d2d6bfb71733a48930c94811c38 Mon Sep 17 00:00:00 2001
+Message-Id: <f79ffec6513a1d2d6bfb71733a48930c94811c38.1632422553.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632422553.git.naveennaidu479@gmail.com>
+References: <cover.1632422553.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Thu, 23 Sep 2021 23:29:54 +0530
+Subject: [PATCH v3 5/6] MIPS: OCTEON: Remove redundant ECRC Generation Enable
+To: helgaas@kernel.org
+
+e8635b484f64 ("MIPS: Add Cavium OCTEON PCI support.") added MIPS
+specific code to enable PCIe and AER error reporting (*irrespective
+of CONFIG_PCIEAER value*) because PCI core didn't do that at the time.
+
+Currently when CONFIG_PCIEAER=y, ECRC generation is enabled by
+pcie_set_ecrc_checking() in the aer_probe() path.
+
+It is now no longer necessary for Octeon code to enable ECRC since
+it's done when PCIe bus loads the AER service driver.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ arch/mips/pci/pci-octeon.c | 9 ---------
+ 1 file changed, 9 deletions(-)
+
+diff --git a/arch/mips/pci/pci-octeon.c b/arch/mips/pci/pci-octeon.c
+index a82cf48f00ab..b973fc464c21 100644
+--- a/arch/mips/pci/pci-octeon.c
++++ b/arch/mips/pci/pci-octeon.c
+@@ -124,15 +124,6 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
+ 		 */
+ 		/* PCI_ERR_UNCOR_SEVER - Uncorrectable Error Severity */
+ 
+-		/* Advanced Error Capabilities */
+-		pci_read_config_dword(dev, pos + PCI_ERR_CAP, &dconfig);
+-		/* ECRC Generation Enable */
+-		if (config & PCI_ERR_CAP_ECRC_GENC)
+-			config |= PCI_ERR_CAP_ECRC_GENE;
+-		/* ECRC Check Enable */
+-		if (config & PCI_ERR_CAP_ECRC_CHKC)
+-			config |= PCI_ERR_CAP_ECRC_CHKE;
+-		pci_write_config_dword(dev, pos + PCI_ERR_CAP, dconfig);
+ 		/* PCI_ERR_HEADER_LOG - Header Log Register (16 bytes) */
+ 		/* Report all errors to the root complex */
+ 		pci_write_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND,
+-- 
+2.25.1
+

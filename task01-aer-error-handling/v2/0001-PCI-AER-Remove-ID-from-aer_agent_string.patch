@@ -1,0 +1,75 @@
+From cf1e497a95af49cc605315fa6e0920f3d103aebd Mon Sep 17 00:00:00 2001
+Message-Id: <cf1e497a95af49cc605315fa6e0920f3d103aebd.1632081616.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632081616.git.naveennaidu479@gmail.com>
+References: <cover.1632081616.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Sun, 19 Sep 2021 18:35:17 +0530
+Subject: [PATCH 1/6] PCI/AER: Remove ID from aer_agent_string[]
+To: Bjorn Helgaas <helgaas@kernel.org>
+
+Before the commit '010caed4ccb6 ("PCI/AER: Decode Error Source
+RequesterID")' the AER error logs looked like:
+
+ > pcieport-driver 0000:00:02.0: AER: Multiple Corrected error received: id=2801
+ >     e1000e 0000:28:00.0: PCIE Bus Error: severity=Corrected, type=Data Link Layer, id=2800(Receiver ID)
+ >     e1000e 0000:28:00.0:   device [8086:1096] error status/mask=00000040/00000000
+ >     e1000e 0000:28:00.0:    [ 6] Bad TLP
+
+In the commit '010caed4ccb6 ("PCI/AER: Decode Error Source Requester ID")',
+the "id" field was removed from the AER error logs, so currently our AER
+logs look like:
+
+ > pcieport-driver 0000:00:02.0: AER: Multiple Corrected error received: 0000:00:1d.5
+ >     e1000e 0000:28:00.0: PCIE Bus Error: severity=Corrected, type=Data Link Layer, (Receiver ID)
+ >     e1000e 0000:28:00.0:   device [8086:1096] error status/mask=00000040/00000000
+ >     e1000e 0000:28:00.0:    [ 6] Bad TLP
+
+If you notice the second line in the above log, even though the "id"
+field is not present we still print "(Receiver ID)". This is confusing.
+
+This patch removes the "ID" from the aer_agent_string[]. With this patch
+the error logs will look as follows:
+
+ > pcieport-driver 0000:00:02.0: AER: Multiple Corrected error received: 0000:00:1d.5
+ >     e1000e 0000:28:00.0: PCIE Bus Error: severity=Corrected, type=Data Link Layer, (Receiver)
+ >     e1000e 0000:28:00.0:   device [8086:1096] error status/mask=00000040/00000000
+ >     e1000e 0000:28:00.0:    [ 6] Bad TLP
+
+Fixes: 010caed4ccb6 ("PCI/AER: Decode Error Source Requester ID")
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pcie/aer.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/pci/pcie/aer.c b/drivers/pci/pcie/aer.c
+index 9784fdcf3006..241ff361b43c 100644
+--- a/drivers/pci/pcie/aer.c
++++ b/drivers/pci/pcie/aer.c
+@@ -516,10 +516,10 @@ static const char *aer_uncorrectable_error_string[] = {
+ };
+ 
+ static const char *aer_agent_string[] = {
+-	"Receiver ID",
+-	"Requester ID",
+-	"Completer ID",
+-	"Transmitter ID"
++	"Receiver",
++	"Requester",
++	"Completer",
++	"Transmitter"
+ };
+ 
+ #define aer_stats_dev_attr(name, stats_array, strings_array,		\
+@@ -703,7 +703,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
+ 	const char *level;
+ 
+ 	if (!info->status) {
+-		pci_err(dev, "PCIe Bus Error: severity=%s, type=Inaccessible, (Unregistered Agent ID)\n",
++		pci_err(dev, "PCIe Bus Error: severity=%s, type=Inaccessible, (Unregistered Agent)\n",
+ 			aer_error_severity_string[info->severity]);
+ 		goto out;
+ 	}
+-- 
+2.25.1
+

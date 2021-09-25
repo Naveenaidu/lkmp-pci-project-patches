@@ -1,0 +1,53 @@
+From 64f6dbb3d6f886b1dca9b64f4d6f290bfd81f736 Mon Sep 17 00:00:00 2001
+Message-Id: <64f6dbb3d6f886b1dca9b64f4d6f290bfd81f736.1632422553.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632422553.git.naveennaidu479@gmail.com>
+References: <cover.1632422553.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Thu, 23 Sep 2021 23:45:02 +0530
+Subject: [PATCH v3 1/6] PCI/AER: Enable COR/UNCOR error reporting in set_device_error_reporting()
+To: helgaas@kernel.org
+
+The (PCIe r5.0, sec 7.6.4.3, Table 7-101) and  (PCIe r5.0, sec 7.8.4.6,
+Table 7-104) states that the default values for the Uncorrectable Error
+Mask and Correctable Error Mask should be 0b. But the current code does
+not set the default value of these registers when the PCIe bus loads the
+AER service driver.
+
+This patch enables reporting of all correctable and uncorrectable error
+during aer_probe()
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pcie/aer.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/drivers/pci/pcie/aer.c b/drivers/pci/pcie/aer.c
+index 9784fdcf3006..aff4bffd4a09 100644
+--- a/drivers/pci/pcie/aer.c
++++ b/drivers/pci/pcie/aer.c
+@@ -1212,6 +1212,7 @@ static int set_device_error_reporting(struct pci_dev *dev, void *data)
+ {
+ 	bool enable = *((bool *)data);
+ 	int type = pci_pcie_type(dev);
++	int aer = dev->aer_cap;
+ 
+ 	if ((type == PCI_EXP_TYPE_ROOT_PORT) ||
+ 	    (type == PCI_EXP_TYPE_RC_EC) ||
+@@ -1224,6 +1225,14 @@ static int set_device_error_reporting(struct pci_dev *dev, void *data)
+ 	}
+ 
+ 	if (enable)
++		/* Enable reporting of all uncorrectable errors */
++		/* Uncorrectable Error Mask - turned on bits disable errors */
++		pci_write_config_dword(dev, aer + PCI_ERR_UNCOR_MASK, 0);
++
++		/* Enable reporting of all correctable errors */
++		/* Correctable Error Mask - turned on bits disable errors */
++		pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, 0);
++
+ 		pcie_set_ecrc_checking(dev);
+ 
+ 	return 0;
+-- 
+2.25.1
+
