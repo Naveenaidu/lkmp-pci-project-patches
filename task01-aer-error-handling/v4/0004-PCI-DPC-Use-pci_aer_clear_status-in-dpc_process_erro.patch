@@ -1,0 +1,39 @@
+From 477cf00f16c6c0849a93ebd06ab381ae51a1b894 Mon Sep 17 00:00:00 2001
+Message-Id: <477cf00f16c6c0849a93ebd06ab381ae51a1b894.1632649323.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632649323.git.naveennaidu479@gmail.com>
+References: <cover.1632649323.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Fri, 24 Sep 2021 19:24:25 +0530
+Subject: [PATCH v4 4/8] PCI/DPC: Use pci_aer_clear_status() in dpc_process_error()
+To: helgaas@kernel.org
+
+dpc_process_error() clears both AER fatal and non fatal status
+registers. Instead of clearing each status registers via a different
+function call use pci_aer_clear_status().
+
+This helps clean up the code a bit.
+
+Fixes: 9f08a5d896ce ("PCI/DPC: Fix print AER status in DPC event handling")
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pcie/dpc.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/drivers/pci/pcie/dpc.c b/drivers/pci/pcie/dpc.c
+index df3f3a10f8bc..faf4a1e77fab 100644
+--- a/drivers/pci/pcie/dpc.c
++++ b/drivers/pci/pcie/dpc.c
+@@ -288,8 +288,7 @@ void dpc_process_error(struct pci_dev *pdev)
+ 		 dpc_get_aer_uncorrect_severity(pdev, &info) &&
+ 		 aer_get_device_error_info(pdev, &info)) {
+ 		aer_print_error(pdev, &info);
+-		pci_aer_clear_nonfatal_status(pdev);
+-		pci_aer_clear_fatal_status(pdev);
++		pci_aer_clear_status(pdev);
+ 	}
+ }
+ 
+-- 
+2.25.1
+

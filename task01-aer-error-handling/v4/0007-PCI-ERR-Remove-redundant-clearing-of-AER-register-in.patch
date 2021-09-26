@@ -1,0 +1,91 @@
+From 8b9dd1336ea53bcceb5c35d94ba9a5891c481981 Mon Sep 17 00:00:00 2001
+Message-Id: <8b9dd1336ea53bcceb5c35d94ba9a5891c481981.1632649323.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632649323.git.naveennaidu479@gmail.com>
+References: <cover.1632649323.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Mon, 20 Sep 2021 01:04:30 +0530
+Subject: [PATCH v4 7/8] PCI/ERR: Remove redundant clearing of AER register in pcie_do_recovery()
+To: helgaas@kernel.org
+
+pcie_do_recovery() is shared across the following paths:
+ - ACPI APEI
+ - Native AER path
+ - EDR
+ - DPC
+
+ACPI APEI
+---------
+ ghes_handle_aer
+   aer_recover_queue
+     kfifo_in_spinlocked(aer_recover_ring)
+
+ aer_recover_work_func
+   while (kfifo_get(aer_recover_ring))
+     pcie_do_recovery()
+
+In this path the system firmware clears the AER registers before
+handing off the record to the OS.
+
+Native AER
+---------
+ aer_irq()
+   kfifo_put(&rpc->aer_fifo, *e_dev)
+   clear_error_source_aer_registers()   <---- AER registers are cleard
+
+ aer_isr()
+   aer_isr_one_error()
+    handle_error_source()
+      pcie_do_recovery()
+
+The AER registers are cleared during the handling of IRQ, i.e before we
+the recovery starts.
+
+DPC
+---
+ dpc_handler()
+   dpc_process_error()
+   pci_aer_clear_status()       <---- AER registers are cleared
+   pcie_do_recovery()
+
+EDR
+---
+ edr_handle_event()
+   dpc_process_error()
+   pci_aer_raw_clear_status()  <---- AER registers are cleared
+   pcie_do_recovery()
+
+In all the above paths, the AER registers are cleared before
+pcie_do_recovery(). And during native OS control of AER, the
+non fatal status AER registers are again cleared in
+pcie_do_recovery(). This is redudant.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pcie/err.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/pci/pcie/err.c b/drivers/pci/pcie/err.c
+index b576aa890c76..fe04b0ae22f4 100644
+--- a/drivers/pci/pcie/err.c
++++ b/drivers/pci/pcie/err.c
+@@ -231,14 +231,11 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
+ 
+ 	/*
+ 	 * If we have native control of AER, clear error status in the device
+-	 * that detected the error.  If the platform retained control of AER,
+-	 * it is responsible for clearing this status.  In that case, the
+-	 * signaling device may not even be visible to the OS.
++	 * that detected the error.
+ 	 */
+-	if (host->native_aer || pcie_ports_native) {
++	if (host->native_aer || pcie_ports_native)
+ 		pcie_clear_device_status(dev);
+-		pci_aer_clear_nonfatal_status(dev);
+-	}
++
+ 	pci_info(bridge, "device recovery successful\n");
+ 	return status;
+ 
+-- 
+2.25.1
+

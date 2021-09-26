@@ -1,0 +1,64 @@
+From 4e12a23b2b28cd5699bb035ed52a40595f2e6f3e Mon Sep 17 00:00:00 2001
+Message-Id: <4e12a23b2b28cd5699bb035ed52a40595f2e6f3e.1632649323.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632649323.git.naveennaidu479@gmail.com>
+References: <cover.1632649323.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Sun, 19 Sep 2021 18:03:31 +0530
+Subject: [PATCH v4 5/8] PCI/DPC: Converge EDR and DPC Path of clearing AER registers
+To: helgaas@kernel.org
+
+In the EDR path, AER registers are cleared *after* DPC error event is
+processed. The process stack in EDR is:
+
+ edr_handle_event()
+   dpc_process_error()
+   pci_aer_raw_clear_status()
+   pcie_do_recovery()
+
+But in DPC path, AER status registers are cleared *while* processing
+the error. The process stack in DPC is:
+
+  dpc_handler()
+    dpc_process_error()
+      pci_aer_clear_status()
+    pcie_do_recovery()
+
+In EDR path, AER status registers are cleared irrespective of whether
+the error was an RP PIO or unmasked uncorrectable error. But in DPC, the
+AER status registers are cleared only when it's an unmasked uncorrectable
+error.
+
+This leads to two different behaviours for the same task (handling of
+DPC errors) in FFS systems and when native OS has control.
+
+This patch, brings in the same semantics for both EDR path and DPC path
+of clearing the AER status registers.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pcie/dpc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pci/pcie/dpc.c b/drivers/pci/pcie/dpc.c
+index faf4a1e77fab..68899a3db126 100644
+--- a/drivers/pci/pcie/dpc.c
++++ b/drivers/pci/pcie/dpc.c
+@@ -288,7 +288,6 @@ void dpc_process_error(struct pci_dev *pdev)
+ 		 dpc_get_aer_uncorrect_severity(pdev, &info) &&
+ 		 aer_get_device_error_info(pdev, &info)) {
+ 		aer_print_error(pdev, &info);
+-		pci_aer_clear_status(pdev);
+ 	}
+ }
+ 
+@@ -297,6 +296,7 @@ static irqreturn_t dpc_handler(int irq, void *context)
+ 	struct pci_dev *pdev = context;
+ 
+ 	dpc_process_error(pdev);
++	pci_aer_clear_status(pdev);
+ 
+ 	/* We configure DPC so it only triggers on ERR_FATAL */
+ 	pcie_do_recovery(pdev, pci_channel_io_frozen, dpc_reset_link);
+-- 
+2.25.1
+

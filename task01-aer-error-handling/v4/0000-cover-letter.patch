@@ -1,0 +1,82 @@
+From 97cda0198f1084999e76d086bed21fa6bff80658 Mon Sep 17 00:00:00 2001
+Message-Id: <cover.1632649323.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Sun, 26 Sep 2021 15:12:03 +0530
+Subject: [PATCH v4 0/8] Fix long standing AER Error Handling Issues
+To: helgaas@kernel.org
+
+This patch series aims at fixing some of the AER error handling issues
+we have.
+
+Currently we have the following issues:
+ - Confusing message in aer_print_error()
+ - aer_err_info not being initialized completely in DPC path before 
+   we print the AER logs
+ - A bug [1] in clearing of AER registers in the native AER path
+
+[1] https://lore.kernel.org/linux-pci/20151229155822.GA17321@localhost/
+
+The patch series fixes the above things. But at the same time, the
+primary aim of this patch series is to converge the APEI path and the
+native AER error handling paths. In our current code, we find that we
+have two different behaviours (especially when it comes to clearing of
+the AER registers) for the same functionality.
+
+This patch series, tries to bring the same semantics and hence more 
+commonanlity between the APEI part of code and the native OS 
+handling of AER errors.
+
+PATCH 1: 
+  - Fixes the first issue
+  - This patch is independent of other patches and can be applied
+    seperately
+
+PATCH 2 - 4:
+  - Fixes the second issue
+  - Patch 3 is depended on Patch 2 in the series
+
+PATCH 5 - 7
+  - Deals with converging the various paths and to bring more
+    commonality between them
+
+PATCH 8:
+  -  Adds extra information in AER error logs.
+
+All the patches have been "compile-tested" only.
+
+Thanks,
+Naveen Naidu
+
+Changelog
+=========
+v4:
+    - Fix logical error in 6/8, in the previous version of the patch set
+      there was a bug, in how I added the devices to the queue.
+
+v3:
+    - Edit the commit messages to be in imperative style and split the
+      commits to be more atomic.
+
+v2:
+    - Add [PATCH 7] which includes the device control register 
+      information in AER error logs.
+
+Naveen Naidu (8):
+ [PATCH 1/8] PCI/AER: Remove ID from aer_agent_string[]
+ [PATCH 2/8] PCI: cleanup struct aer_err_info
+ [PATCH 3/8] PCI/DPC: Initialize info->id in dpc_process_error()
+ [PATCH 4/8] PCI/DPC: Use pci_aer_clear_status() in dpc_process_error()
+ [PATCH 5/8] PCI/DPC: Converge EDR and DPC Path of clearing AER registers
+ [PATCH 6/8] PCI/AER: Clear error device AER registers in aer_irq()
+ [PATCH 7/8] PCI/ERR: Remove redundant clearing of AER register in pcie_do_recovery()
+ [PATCH 8/8] PCI/AER: Include DEVCTL in aer_print_error()
+
+ drivers/pci/pci.h      |  24 +++-
+ drivers/pci/pcie/aer.c | 252 ++++++++++++++++++++++++++++-------------
+ drivers/pci/pcie/dpc.c |   9 +-
+ drivers/pci/pcie/err.c |   9 +-
+ 4 files changed, 196 insertions(+), 98 deletions(-)
+
+-- 
+2.25.1
+
