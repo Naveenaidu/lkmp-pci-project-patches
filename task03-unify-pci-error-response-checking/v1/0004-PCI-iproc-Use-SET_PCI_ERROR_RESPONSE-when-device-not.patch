@@ -1,0 +1,41 @@
+From c9902a50b22ea36a6f41c3f9be67ea166813f711 Mon Sep 17 00:00:00 2001
+Message-Id: <c9902a50b22ea36a6f41c3f9be67ea166813f711.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 00:46:15 +0530
+Subject: [PATCH 04/22] PCI: iproc: Use SET_PCI_ERROR_RESPONSE() when device
+ not found
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use SET_PCI_ERROR_RESPONSE() to set the error response, when a faulty
+hardware read occurs.
+
+This helps unify PCI error response checking and make error check
+consistent and easier to find.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/pcie-iproc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pci/controller/pcie-iproc.c b/drivers/pci/controller/pcie-iproc.c
+index 30ac5fbefbbf..f182dc2cdb0c 100644
+--- a/drivers/pci/controller/pcie-iproc.c
++++ b/drivers/pci/controller/pcie-iproc.c
+@@ -660,7 +660,7 @@ static int iproc_pci_raw_config_read32(struct iproc_pcie *pcie,
+ 
+ 	addr = iproc_pcie_map_cfg_bus(pcie, 0, devfn, where & ~0x3);
+ 	if (!addr) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+-- 
+2.25.1
+

@@ -1,0 +1,37 @@
+From df61fc44556f86dcd4027b1e095249ff808f4fac Mon Sep 17 00:00:00 2001
+Message-Id: <df61fc44556f86dcd4027b1e095249ff808f4fac.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 23:27:30 +0530
+Subject: [PATCH 20/22] PCI: keystone: Use PCI_ERROR_RESPONSE to specify
+ hardware error
+To: bjorn@helgaas.com
+
+Include PCI_ERROR_RESPONSE along with 0xffffffff in the comment to
+specify a hardware error. This helps finding where MMIO read error
+occurs easier to find.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/dwc/pci-keystone.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/pci/controller/dwc/pci-keystone.c b/drivers/pci/controller/dwc/pci-keystone.c
+index 865258d8c53c..25b11610b500 100644
+--- a/drivers/pci/controller/dwc/pci-keystone.c
++++ b/drivers/pci/controller/dwc/pci-keystone.c
+@@ -748,8 +748,8 @@ static int ks_pcie_config_legacy_irq(struct keystone_pcie *ks_pcie)
+ #ifdef CONFIG_ARM
+ /*
+  * When a PCI device does not exist during config cycles, keystone host gets a
+- * bus error instead of returning 0xffffffff. This handler always returns 0
+- * for this kind of faults.
++ * bus error instead of returning 0xffffffff (PCI_ERROR_RESPONSE).
++ * This handler always returns 0 for this kind of faults.
+  */
+ static int ks_pcie_fault(unsigned long addr, unsigned int fsr,
+ 			 struct pt_regs *regs)
+-- 
+2.25.1
+

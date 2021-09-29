@@ -1,0 +1,35 @@
+From 773457676768a70d9aebe9b732b0e4edee714a90 Mon Sep 17 00:00:00 2001
+Message-Id: <773457676768a70d9aebe9b732b0e4edee714a90.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 23:36:49 +0530
+Subject: [PATCH 21/22] PCI: hv: Use PCI_ERROR_RESPONSE to specify hardware
+ read error
+To: bjorn@helgaas.com
+
+Include PCI_ERROR_RESPONSE along with 0xFFFFFFFF in the comment to
+specify a hardware error. This helps finding where MMIO read error
+occurs easier to find.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/pci-hyperv.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pci/controller/pci-hyperv.c b/drivers/pci/controller/pci-hyperv.c
+index eaec915ffe62..248087aaebb7 100644
+--- a/drivers/pci/controller/pci-hyperv.c
++++ b/drivers/pci/controller/pci-hyperv.c
+@@ -1774,7 +1774,7 @@ static void prepopulate_bars(struct hv_pcibus_device *hbus)
+ 	 * If the memory enable bit is already set, Hyper-V silently ignores
+ 	 * the below BAR updates, and the related PCI device driver can not
+ 	 * work, because reading from the device register(s) always returns
+-	 * 0xFFFFFFFF.
++	 * 0xFFFFFFFF (PCI_ERROR_RESPONSE).
+ 	 */
+ 	list_for_each_entry(hpdev, &hbus->children, list_entry) {
+ 		_hv_pcifront_read_config(hpdev, PCI_COMMAND, 2, &command);
+-- 
+2.25.1
+

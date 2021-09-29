@@ -1,0 +1,43 @@
+From 1a7428d9eeddde097c6d49616ba3e9907f16e70a Mon Sep 17 00:00:00 2001
+Message-Id: <1a7428d9eeddde097c6d49616ba3e9907f16e70a.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 01:01:04 +0530
+Subject: [PATCH 07/22] PCI: histb: Use SET_PCI_ERROR_RESPONSE() when device
+ not found
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use SET_PCI_ERROR_RESPONSE() to set the error response, when a faulty
+read occurs.
+
+This helps unify PCI error response checking and make error check
+consistent and easier to find.
+
+Compile tested only.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/dwc/pcie-histb.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pci/controller/dwc/pcie-histb.c b/drivers/pci/controller/dwc/pcie-histb.c
+index 86f9d16c50d7..1392732b104f 100644
+--- a/drivers/pci/controller/dwc/pcie-histb.c
++++ b/drivers/pci/controller/dwc/pcie-histb.c
+@@ -128,7 +128,7 @@ static int histb_pcie_rd_own_conf(struct pci_bus *bus, unsigned int devfn,
+ 	struct dw_pcie *pci = to_dw_pcie_from_pp(bus->sysdata);
+ 
+ 	if (PCI_SLOT(devfn)) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+-- 
+2.25.1
+

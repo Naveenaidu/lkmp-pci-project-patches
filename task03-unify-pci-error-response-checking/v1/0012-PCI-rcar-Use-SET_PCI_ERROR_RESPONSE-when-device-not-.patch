@@ -1,0 +1,43 @@
+From 8a9da04593fea726566beb8a1e3ae93f4f0f4bd7 Mon Sep 17 00:00:00 2001
+Message-Id: <8a9da04593fea726566beb8a1e3ae93f4f0f4bd7.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 23:51:00 +0530
+Subject: [PATCH 12/22] PCI: rcar: Use SET_PCI_ERROR_RESPONSE() when device not
+ found
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use SET_PCI_ERROR_RESPONSE() to set the error response, when a faulty
+read occurs.
+
+This helps unify PCI error response checking and make error check
+consistent and easier to find.
+
+Compile tested only.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/pcie-rcar-host.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pci/controller/pcie-rcar-host.c b/drivers/pci/controller/pcie-rcar-host.c
+index 8f3131844e77..80dbc6f717d6 100644
+--- a/drivers/pci/controller/pcie-rcar-host.c
++++ b/drivers/pci/controller/pcie-rcar-host.c
+@@ -162,7 +162,7 @@ static int rcar_pcie_read_conf(struct pci_bus *bus, unsigned int devfn,
+ 	ret = rcar_pcie_config_access(host, RCAR_PCI_ACCESS_READ,
+ 				      bus, devfn, where, val);
+ 	if (ret != PCIBIOS_SUCCESSFUL) {
+-		*val = 0xffffffff;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return ret;
+ 	}
+ 
+-- 
+2.25.1
+

@@ -1,0 +1,43 @@
+From ae53e3eb0a1db5940d3c96731b9fb9eea02ee450 Mon Sep 17 00:00:00 2001
+Message-Id: <ae53e3eb0a1db5940d3c96731b9fb9eea02ee450.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 23:49:02 +0530
+Subject: [PATCH 11/22] PCI: altera: Use SET_PCI_ERROR_RESPONSE() when device
+ not found
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use SET_PCI_ERROR_RESPONSE() to set the error response, when a faulty
+read occurs.
+
+This helps unify PCI error response checking and make error check
+consistent and easier to find.
+
+Compile tested only.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/pcie-altera.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pci/controller/pcie-altera.c b/drivers/pci/controller/pcie-altera.c
+index 2513e9363236..d6c71b5d1ffb 100644
+--- a/drivers/pci/controller/pcie-altera.c
++++ b/drivers/pci/controller/pcie-altera.c
+@@ -511,7 +511,7 @@ static int altera_pcie_cfg_read(struct pci_bus *bus, unsigned int devfn,
+ 		return PCIBIOS_BAD_REGISTER_NUMBER;
+ 
+ 	if (!altera_pcie_valid_device(pcie, bus, PCI_SLOT(devfn))) {
+-		*value = 0xffffffff;
++		SET_PCI_ERROR_RESPONSE(value);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+-- 
+2.25.1
+

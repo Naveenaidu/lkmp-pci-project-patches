@@ -1,0 +1,50 @@
+From d0fb7ea73ed6c1c32790beb0f7b193de91b85601 Mon Sep 17 00:00:00 2001
+Message-Id: <d0fb7ea73ed6c1c32790beb0f7b193de91b85601.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 23:40:36 +0530
+Subject: [PATCH 10/22] PCI: mvebu: Use SET_PCI_ERROR_RESPONSE() when device
+ not found
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use SET_PCI_ERROR_RESPONSE() to set the error response, when a faulty
+read occurs.
+
+This helps unify PCI error response checking and make error check
+consistent and easier to find.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/pci-mvebu.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/pci/controller/pci-mvebu.c b/drivers/pci/controller/pci-mvebu.c
+index ed13e81cd691..51d61194a31a 100644
+--- a/drivers/pci/controller/pci-mvebu.c
++++ b/drivers/pci/controller/pci-mvebu.c
+@@ -654,7 +654,7 @@ static int mvebu_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
+ 
+ 	port = mvebu_pcie_find_port(pcie, bus, devfn);
+ 	if (!port) {
+-		*val = 0xffffffff;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+@@ -664,7 +664,7 @@ static int mvebu_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
+ 						 size, val);
+ 
+ 	if (!mvebu_pcie_link_up(port)) {
+-		*val = 0xffffffff;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+-- 
+2.25.1
+

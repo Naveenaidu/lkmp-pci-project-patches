@@ -1,0 +1,52 @@
+From 355afd406c863bd83985aa03453e591c85f5d9eb Mon Sep 17 00:00:00 2001
+Message-Id: <355afd406c863bd83985aa03453e591c85f5d9eb.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 01:09:46 +0530
+Subject: [PATCH 18/22] PCI/PME: Use RESPONSE_IS_PCI_ERROR() to check read from
+ hardware
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use RESPONSE_IS_PCI_ERROR() to check the response we get when we read
+data from hardware.
+
+This helps unify PCI error response checking and make error checks
+consistent and easier to find.
+
+Compile tested only.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pcie/pme.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/pci/pcie/pme.c b/drivers/pci/pcie/pme.c
+index 1d0dd77fed3a..24588d0b581f 100644
+--- a/drivers/pci/pcie/pme.c
++++ b/drivers/pci/pcie/pme.c
+@@ -224,7 +224,7 @@ static void pcie_pme_work_fn(struct work_struct *work)
+ 			break;
+ 
+ 		pcie_capability_read_dword(port, PCI_EXP_RTSTA, &rtsta);
+-		if (rtsta == (u32) ~0)
++		if (RESPONSE_IS_PCI_ERROR(&rtsta))
+ 			break;
+ 
+ 		if (rtsta & PCI_EXP_RTSTA_PME) {
+@@ -274,7 +274,7 @@ static irqreturn_t pcie_pme_irq(int irq, void *context)
+ 	spin_lock_irqsave(&data->lock, flags);
+ 	pcie_capability_read_dword(port, PCI_EXP_RTSTA, &rtsta);
+ 
+-	if (rtsta == (u32) ~0 || !(rtsta & PCI_EXP_RTSTA_PME)) {
++	if (RESPONSE_IS_PCI_ERROR(&rtsta) || !(rtsta & PCI_EXP_RTSTA_PME)) {
+ 		spin_unlock_irqrestore(&data->lock, flags);
+ 		return IRQ_NONE;
+ 	}
+-- 
+2.25.1
+

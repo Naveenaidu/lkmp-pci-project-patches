@@ -1,0 +1,104 @@
+From ab6170297fda2f5a297fa3ec42a8c6ff64e3137e Mon Sep 17 00:00:00 2001
+Message-Id: <ab6170297fda2f5a297fa3ec42a8c6ff64e3137e.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 00:32:39 +0530
+Subject: [PATCH 14/22] PCI/ERR: Use RESPONSE_IS_PCI_ERROR() to check read from
+ hardware
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use RESPONSE_IS_PCI_ERROR() to check the response we get when we read
+data from hardware.
+
+This unifies PCI error response checking and make error checks
+consistent and easier to find.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pci.c   | 10 +++++-----
+ drivers/pci/probe.c | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/pci/pci.c b/drivers/pci/pci.c
+index ce2ab62b64cf..c1575364d1ce 100644
+--- a/drivers/pci/pci.c
++++ b/drivers/pci/pci.c
+@@ -1077,7 +1077,7 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
+ 		return -EIO;
+ 
+ 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+-	if (pmcsr == (u16) ~0) {
++	if (RESPONSE_IS_PCI_ERROR(&pmcsr)) {
+ 		pci_err(dev, "can't change power state from %s to %s (config space inaccessible)\n",
+ 			pci_power_name(dev->current_state),
+ 			pci_power_name(state));
+@@ -1239,16 +1239,16 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
+ 	 * After reset, the device should not silently discard config
+ 	 * requests, but it may still indicate that it needs more time by
+ 	 * responding to them with CRS completions.  The Root Port will
+-	 * generally synthesize ~0 data to complete the read (except when
+-	 * CRS SV is enabled and the read was for the Vendor ID; in that
+-	 * case it synthesizes 0x0001 data).
++	 * generally synthesize ~0 (PCI_ERROR_RESPONSE) data to complete
++	 * the read (except when CRS SV is enabled and the read was for the
++	 * Vendor ID; in that case it synthesizes 0x0001 data).
+ 	 *
+ 	 * Wait for the device to return a non-CRS completion.  Read the
+ 	 * Command register instead of Vendor ID so we don't have to
+ 	 * contend with the CRS SV value.
+ 	 */
+ 	pci_read_config_dword(dev, PCI_COMMAND, &id);
+-	while (id == ~0) {
++	while (RESPONSE_IS_PCI_ERROR(&id)) {
+ 		if (delay > timeout) {
+ 			pci_warn(dev, "not ready %dms after %s; giving up\n",
+ 				 delay - 1, reset_type);
+diff --git a/drivers/pci/probe.c b/drivers/pci/probe.c
+index d9fc02a71baa..55b94d689eca 100644
+--- a/drivers/pci/probe.c
++++ b/drivers/pci/probe.c
+@@ -206,14 +206,14 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
+ 	 * memory BAR or a ROM, bit 0 must be clear; if it's an io BAR, bit
+ 	 * 1 must be clear.
+ 	 */
+-	if (sz == 0xffffffff)
++	if (RESPONSE_IS_PCI_ERROR(&sz))
+ 		sz = 0;
+ 
+ 	/*
+ 	 * I don't know how l can have all bits set.  Copied from old code.
+ 	 * Maybe it fixes a bug on some ancient platform.
+ 	 */
+-	if (l == 0xffffffff)
++	if (RESPONSE_IS_PCI_ERROR(&l))
+ 		l = 0;
+ 
+ 	if (type == pci_bar_unknown) {
+@@ -1660,7 +1660,7 @@ static int pci_cfg_space_size_ext(struct pci_dev *dev)
+ 
+ 	if (pci_read_config_dword(dev, pos, &status) != PCIBIOS_SUCCESSFUL)
+ 		return PCI_CFG_SPACE_SIZE;
+-	if (status == 0xffffffff || pci_ext_cfg_is_aliased(dev))
++	if (RESPONSE_IS_PCI_ERROR(&status) || pci_ext_cfg_is_aliased(dev))
+ 		return PCI_CFG_SPACE_SIZE;
+ 
+ 	return PCI_CFG_SPACE_EXP_SIZE;
+@@ -2336,8 +2336,8 @@ bool pci_bus_generic_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
+ 	if (pci_bus_read_config_dword(bus, devfn, PCI_VENDOR_ID, l))
+ 		return false;
+ 
+-	/* Some broken boards return 0 or ~0 if a slot is empty: */
+-	if (*l == 0xffffffff || *l == 0x00000000 ||
++	/* Some broken boards return 0 or ~0 (PCI_ERROR_RESPONSE) if a slot is empty: */
++	if (RESPONSE_IS_PCI_ERROR(l) || *l == 0x00000000 ||
+ 	    *l == 0x0000ffff || *l == 0xffff0000)
+ 		return false;
+ 
+-- 
+2.25.1
+

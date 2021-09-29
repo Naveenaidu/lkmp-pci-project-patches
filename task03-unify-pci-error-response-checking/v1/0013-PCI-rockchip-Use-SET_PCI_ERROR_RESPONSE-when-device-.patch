@@ -1,0 +1,43 @@
+From bb0fc53d06babec0e4cfc094e28a865de9854bcf Mon Sep 17 00:00:00 2001
+Message-Id: <bb0fc53d06babec0e4cfc094e28a865de9854bcf.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 23:53:33 +0530
+Subject: [PATCH 13/22] PCI: rockchip: Use SET_PCI_ERROR_RESPONSE() when device
+ not found
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use SET_PCI_ERROR_RESPONSE() to set the error response, when a faulty
+read occurs.
+
+This helps unify PCI error response checking and make error check
+consistent and easier to find.
+
+Compile tested only.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/pcie-rockchip-host.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pci/controller/pcie-rockchip-host.c b/drivers/pci/controller/pcie-rockchip-host.c
+index c52316d0bfd2..f5d718700d59 100644
+--- a/drivers/pci/controller/pcie-rockchip-host.c
++++ b/drivers/pci/controller/pcie-rockchip-host.c
+@@ -222,7 +222,7 @@ static int rockchip_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
+ 	struct rockchip_pcie *rockchip = bus->sysdata;
+ 
+ 	if (!rockchip_pcie_valid_device(rockchip, bus, PCI_SLOT(devfn))) {
+-		*val = 0xffffffff;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+-- 
+2.25.1
+

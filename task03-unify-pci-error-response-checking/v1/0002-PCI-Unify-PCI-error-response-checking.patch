@@ -1,0 +1,104 @@
+From 54153797e528d4b25e10334556af2dc8768ed4f1 Mon Sep 17 00:00:00 2001
+Message-Id: <54153797e528d4b25e10334556af2dc8768ed4f1.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 00:15:37 +0530
+Subject: [PATCH 02/22] PCI: Unify PCI error response checking
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use SET_PCI_ERROR_RESPONSE() to set the error response and
+RESPONSE_IS_PCI_ERROR() to check the error response during hardware
+read.
+
+These definitions make error checks consistent and easier to find.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/access.c | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/pci/access.c b/drivers/pci/access.c
+index 46935695cfb9..e1954bbbd137 100644
+--- a/drivers/pci/access.c
++++ b/drivers/pci/access.c
+@@ -81,7 +81,7 @@ int pci_generic_config_read(struct pci_bus *bus, unsigned int devfn,
+ 
+ 	addr = bus->ops->map_bus(bus, devfn, where);
+ 	if (!addr) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+@@ -123,7 +123,7 @@ int pci_generic_config_read32(struct pci_bus *bus, unsigned int devfn,
+ 
+ 	addr = bus->ops->map_bus(bus, devfn, where & ~0x3);
+ 	if (!addr) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+@@ -411,10 +411,10 @@ int pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *val)
+ 		ret = pci_read_config_word(dev, pci_pcie_cap(dev) + pos, val);
+ 		/*
+ 		 * Reset *val to 0 if pci_read_config_word() fails, it may
+-		 * have been written as 0xFFFF if hardware error happens
+-		 * during pci_read_config_word().
++		 * have been written as 0xFFFF (PCI_ERROR_RESPONSE) if hardware error
++		 * happens during pci_read_config_word().
+ 		 */
+-		if (ret)
++		if (RESPONSE_IS_PCI_ERROR(val))
+ 			*val = 0;
+ 		return ret;
+ 	}
+@@ -446,10 +446,10 @@ int pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *val)
+ 		ret = pci_read_config_dword(dev, pci_pcie_cap(dev) + pos, val);
+ 		/*
+ 		 * Reset *val to 0 if pci_read_config_dword() fails, it may
+-		 * have been written as 0xFFFFFFFF if hardware error happens
+-		 * during pci_read_config_dword().
++		 * have been written as 0xFFFFFFFF (PCI_ERROR_RESPONSE) if hardware
++		 * error happens during pci_read_config_dword().
+ 		 */
+-		if (ret)
++		if (RESPONSE_IS_PCI_ERROR(val))
+ 			*val = 0;
+ 		return ret;
+ 	}
+@@ -523,7 +523,7 @@ EXPORT_SYMBOL(pcie_capability_clear_and_set_dword);
+ int pci_read_config_byte(const struct pci_dev *dev, int where, u8 *val)
+ {
+ 	if (pci_dev_is_disconnected(dev)) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 	return pci_bus_read_config_byte(dev->bus, dev->devfn, where, val);
+@@ -533,7 +533,7 @@ EXPORT_SYMBOL(pci_read_config_byte);
+ int pci_read_config_word(const struct pci_dev *dev, int where, u16 *val)
+ {
+ 	if (pci_dev_is_disconnected(dev)) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 	return pci_bus_read_config_word(dev->bus, dev->devfn, where, val);
+@@ -544,7 +544,7 @@ int pci_read_config_dword(const struct pci_dev *dev, int where,
+ 					u32 *val)
+ {
+ 	if (pci_dev_is_disconnected(dev)) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 	return pci_bus_read_config_dword(dev->bus, dev->devfn, where, val);
+-- 
+2.25.1
+

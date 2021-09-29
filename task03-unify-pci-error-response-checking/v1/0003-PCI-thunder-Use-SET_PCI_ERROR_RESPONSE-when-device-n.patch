@@ -1,0 +1,136 @@
+From c50174681e9bd0491bbb91ae730b193b36d8e11d Mon Sep 17 00:00:00 2001
+Message-Id: <c50174681e9bd0491bbb91ae730b193b36d8e11d.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 00:43:44 +0530
+Subject: [PATCH 03/22] PCI: thunder: Use SET_PCI_ERROR_RESPONSE() when device
+ not found
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use SET_PCI_ERROR_RESPONSE() to set the error response, when a faulty
+read occurs.
+
+This helps unify PCI error response checking and make error check
+consistent and easier to find.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/pci-thunder-ecam.c | 20 ++++++++++----------
+ drivers/pci/controller/pci-thunder-pem.c  |  2 +-
+ 2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/pci/controller/pci-thunder-ecam.c b/drivers/pci/controller/pci-thunder-ecam.c
+index ffd84656544f..4c57ad2aa9aa 100644
+--- a/drivers/pci/controller/pci-thunder-ecam.c
++++ b/drivers/pci/controller/pci-thunder-ecam.c
+@@ -42,7 +42,7 @@ static int handle_ea_bar(u32 e0, int bar, struct pci_bus *bus,
+ 	if (where_a == 0x4) {
+ 		addr = bus->ops->map_bus(bus, devfn, bar); /* BAR 0 */
+ 		if (!addr) {
+-			*val = ~0;
++			SET_PCI_ERROR_RESPONSE(val);
+ 			return PCIBIOS_DEVICE_NOT_FOUND;
+ 		}
+ 		v = readl(addr);
+@@ -57,7 +57,7 @@ static int handle_ea_bar(u32 e0, int bar, struct pci_bus *bus,
+ 
+ 		addr = bus->ops->map_bus(bus, devfn, bar); /* BAR 0 */
+ 		if (!addr) {
+-			*val = ~0;
++			SET_PCI_ERROR_RESPONSE(val);
+ 			return PCIBIOS_DEVICE_NOT_FOUND;
+ 		}
+ 		barl_orig = readl(addr + 0);
+@@ -73,7 +73,7 @@ static int handle_ea_bar(u32 e0, int bar, struct pci_bus *bus,
+ 	if (where_a == 0xc) {
+ 		addr = bus->ops->map_bus(bus, devfn, bar + 4); /* BAR 1 */
+ 		if (!addr) {
+-			*val = ~0;
++			SET_PCI_ERROR_RESPONSE(val);
+ 			return PCIBIOS_DEVICE_NOT_FOUND;
+ 		}
+ 		v = readl(addr); /* EA entry-3. Base-H */
+@@ -105,7 +105,7 @@ static int thunder_ecam_p2_config_read(struct pci_bus *bus, unsigned int devfn,
+ 
+ 	addr = bus->ops->map_bus(bus, devfn, where_a);
+ 	if (!addr) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+@@ -136,7 +136,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
+ 
+ 	addr = bus->ops->map_bus(bus, devfn, 0xc);
+ 	if (!addr) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+@@ -147,7 +147,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
+ 
+ 	addr = bus->ops->map_bus(bus, devfn, 8);
+ 	if (!addr) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+@@ -177,7 +177,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
+ 
+ 	addr = bus->ops->map_bus(bus, devfn, 0);
+ 	if (!addr) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+@@ -197,7 +197,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
+ 
+ 		addr = bus->ops->map_bus(bus, devfn, 0x70);
+ 		if (!addr) {
+-			*val = ~0;
++			SET_PCI_ERROR_RESPONSE(val);
+ 			return PCIBIOS_DEVICE_NOT_FOUND;
+ 		}
+ 		/* E_CAP */
+@@ -212,7 +212,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
+ 		if (where_a == 0xb0) {
+ 			addr = bus->ops->map_bus(bus, devfn, where_a);
+ 			if (!addr) {
+-				*val = ~0;
++				SET_PCI_ERROR_RESPONSE(val);
+ 				return PCIBIOS_DEVICE_NOT_FOUND;
+ 			}
+ 			v = readl(addr);
+@@ -269,7 +269,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
+ 		if (where_a == 0x70) {
+ 			addr = bus->ops->map_bus(bus, devfn, where_a);
+ 			if (!addr) {
+-				*val = ~0;
++				SET_PCI_ERROR_RESPONSE(val);
+ 				return PCIBIOS_DEVICE_NOT_FOUND;
+ 			}
+ 			v = readl(addr);
+diff --git a/drivers/pci/controller/pci-thunder-pem.c b/drivers/pci/controller/pci-thunder-pem.c
+index 0660b9da204f..a463a1b61f23 100644
+--- a/drivers/pci/controller/pci-thunder-pem.c
++++ b/drivers/pci/controller/pci-thunder-pem.c
+@@ -42,7 +42,7 @@ static int thunder_pem_bridge_read(struct pci_bus *bus, unsigned int devfn,
+ 	struct thunder_pem_pci *pem_pci = (struct thunder_pem_pci *)cfg->priv;
+ 
+ 	if (devfn != 0 || where >= 2048) {
+-		*val = ~0;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+-- 
+2.25.1
+

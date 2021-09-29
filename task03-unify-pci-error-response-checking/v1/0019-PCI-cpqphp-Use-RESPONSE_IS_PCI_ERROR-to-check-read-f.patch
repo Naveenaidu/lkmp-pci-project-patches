@@ -1,0 +1,50 @@
+From df3e5e8a9acba30d5e3e8c098cad16622af6a3f1 Mon Sep 17 00:00:00 2001
+Message-Id: <df3e5e8a9acba30d5e3e8c098cad16622af6a3f1.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Wed, 29 Sep 2021 00:03:55 +0530
+Subject: [PATCH 19/22] PCI: cpqphp: Use RESPONSE_IS_PCI_ERROR() to check read
+ from hardware
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use RESPONSE_IS_PCI_ERROR() to check the response we get when we read
+data from hardware.
+
+This helps unify PCI error response checking and make error checks
+consistent and easier to find.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/hotplug/cpqphp_ctrl.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/pci/hotplug/cpqphp_ctrl.c b/drivers/pci/hotplug/cpqphp_ctrl.c
+index 1b26ca0b3701..d5274b9b06a5 100644
+--- a/drivers/pci/hotplug/cpqphp_ctrl.c
++++ b/drivers/pci/hotplug/cpqphp_ctrl.c
+@@ -2273,7 +2273,7 @@ static u32 configure_new_device(struct controller  *ctrl, struct pci_func  *func
+ 		while ((function < max_functions) && (!stop_it)) {
+ 			pci_bus_read_config_dword(ctrl->pci_bus, PCI_DEVFN(func->device, function), 0x00, &ID);
+ 
+-			if (ID == 0xFFFFFFFF) {
++			if (RESPONSE_IS_PCI_ERROR(&ID)) {
+ 				function++;
+ 			} else {
+ 				/* Setup slot structure. */
+@@ -2517,7 +2517,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
+ 			pci_bus_read_config_dword(pci_bus, PCI_DEVFN(device, 0), 0x00, &ID);
+ 			pci_bus->number = func->bus;
+ 
+-			if (ID != 0xFFFFFFFF) {	  /*  device present */
++			if (!RESPONSE_IS_PCI_ERROR(&ID)) {	  /*  device present */
+ 				/* Setup slot structure. */
+ 				new_slot = cpqhp_slot_create(hold_bus_node->base);
+ 
+-- 
+2.25.1
+

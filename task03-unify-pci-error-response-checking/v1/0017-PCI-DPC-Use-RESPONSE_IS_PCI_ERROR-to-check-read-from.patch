@@ -1,0 +1,52 @@
+From 0cf33535f20df433d1ea58acca66de738adb21c8 Mon Sep 17 00:00:00 2001
+Message-Id: <0cf33535f20df433d1ea58acca66de738adb21c8.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 01:06:43 +0530
+Subject: [PATCH 17/22] PCI/DPC: Use RESPONSE_IS_PCI_ERROR() to check read from
+ hardware
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use RESPONSE_IS_PCI_ERROR() to check the response we get when we read
+data from hardware.
+
+This helps unify PCI error response checking and make error checks
+consistent and easier to find.
+
+Compile tested only.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/pcie/dpc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/pci/pcie/dpc.c b/drivers/pci/pcie/dpc.c
+index c556e7beafe3..561c44d9429c 100644
+--- a/drivers/pci/pcie/dpc.c
++++ b/drivers/pci/pcie/dpc.c
+@@ -79,7 +79,7 @@ static bool dpc_completed(struct pci_dev *pdev)
+ 	u16 status;
+ 
+ 	pci_read_config_word(pdev, pdev->dpc_cap + PCI_EXP_DPC_STATUS, &status);
+-	if ((status != 0xffff) && (status & PCI_EXP_DPC_STATUS_TRIGGER))
++	if ((!RESPONSE_IS_PCI_ERROR(&status)) && (status & PCI_EXP_DPC_STATUS_TRIGGER))
+ 		return false;
+ 
+ 	if (test_bit(PCI_DPC_RECOVERING, &pdev->priv_flags))
+@@ -312,7 +312,7 @@ static irqreturn_t dpc_irq(int irq, void *context)
+ 
+ 	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &status);
+ 
+-	if (!(status & PCI_EXP_DPC_STATUS_INTERRUPT) || status == (u16)(~0))
++	if (!(status & PCI_EXP_DPC_STATUS_INTERRUPT) || RESPONSE_IS_PCI_ERROR(&status))
+ 		return IRQ_NONE;
+ 
+ 	pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
+-- 
+2.25.1
+

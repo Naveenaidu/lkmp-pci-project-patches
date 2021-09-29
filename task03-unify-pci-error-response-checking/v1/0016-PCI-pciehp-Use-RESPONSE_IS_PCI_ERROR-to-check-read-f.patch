@@ -1,0 +1,79 @@
+From 0c0a1a9410380650521cf9759aed4e4fa376c169 Mon Sep 17 00:00:00 2001
+Message-Id: <0c0a1a9410380650521cf9759aed4e4fa376c169.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 01:04:46 +0530
+Subject: [PATCH 16/22] PCI: pciehp: Use RESPONSE_IS_PCI_ERROR() to check read
+ from hardware
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use RESPONSE_IS_PCI_ERROR() to check the response we get when we read
+data from hardware.
+
+This helps unify PCI error response checking and make error checks
+consistent and easier to find.
+
+Compile tested only.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/hotplug/pciehp_hpc.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/pci/hotplug/pciehp_hpc.c b/drivers/pci/hotplug/pciehp_hpc.c
+index 3024d7e85e6a..8a2f6bb643b5 100644
+--- a/drivers/pci/hotplug/pciehp_hpc.c
++++ b/drivers/pci/hotplug/pciehp_hpc.c
+@@ -89,7 +89,7 @@ static int pcie_poll_cmd(struct controller *ctrl, int timeout)
+ 
+ 	do {
+ 		pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
+-		if (slot_status == (u16) ~0) {
++		if (RESPONSE_IS_PCI_ERROR(&slot_status)) {
+ 			ctrl_info(ctrl, "%s: no response from device\n",
+ 				  __func__);
+ 			return 0;
+@@ -165,7 +165,7 @@ static void pcie_do_write_cmd(struct controller *ctrl, u16 cmd,
+ 	pcie_wait_cmd(ctrl);
+ 
+ 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
+-	if (slot_ctrl == (u16) ~0) {
++	if (RESPONSE_IS_PCI_ERROR(&slot_ctrl)) {
+ 		ctrl_info(ctrl, "%s: no response from device\n", __func__);
+ 		goto out;
+ 	}
+@@ -236,7 +236,7 @@ int pciehp_check_link_active(struct controller *ctrl)
+ 	int ret;
+ 
+ 	ret = pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnk_status);
+-	if (ret == PCIBIOS_DEVICE_NOT_FOUND || lnk_status == (u16)~0)
++	if (ret == PCIBIOS_DEVICE_NOT_FOUND || RESPONSE_IS_PCI_ERROR(&lnk_status))
+ 		return -ENODEV;
+ 
+ 	ret = !!(lnk_status & PCI_EXP_LNKSTA_DLLLA);
+@@ -443,7 +443,7 @@ int pciehp_card_present(struct controller *ctrl)
+ 	int ret;
+ 
+ 	ret = pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
+-	if (ret == PCIBIOS_DEVICE_NOT_FOUND || slot_status == (u16)~0)
++	if (ret == PCIBIOS_DEVICE_NOT_FOUND || RESPONSE_IS_PCI_ERROR(&slot_status))
+ 		return -ENODEV;
+ 
+ 	return !!(slot_status & PCI_EXP_SLTSTA_PDS);
+@@ -621,7 +621,7 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
+ 
+ read_status:
+ 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &status);
+-	if (status == (u16) ~0) {
++	if (RESPONSE_IS_PCI_ERROR(&status)) {
+ 		ctrl_info(ctrl, "%s: no response from device\n", __func__);
+ 		if (parent)
+ 			pm_runtime_put(parent);
+-- 
+2.25.1
+

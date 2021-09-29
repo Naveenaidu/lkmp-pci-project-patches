@@ -1,0 +1,69 @@
+From 2fba3c759aa2812f610ebf400d69551693927433 Mon Sep 17 00:00:00 2001
+Message-Id: <2fba3c759aa2812f610ebf400d69551693927433.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 22:57:18 +0530
+Subject: [PATCH 09/22] PCI: aardvark: Use SET_PCI_ERROR_RESPONSE() when device
+ not found
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use SET_PCI_ERROR_RESPONSE() to set the error response, when a faulty
+read occurs.
+
+This helps unify PCI error response checking and make error check
+consistent and easier to find.
+
+Compile tested only.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/pci-aardvark.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/pci/controller/pci-aardvark.c b/drivers/pci/controller/pci-aardvark.c
+index 596ebcfcc82d..dc2f820ef55f 100644
+--- a/drivers/pci/controller/pci-aardvark.c
++++ b/drivers/pci/controller/pci-aardvark.c
+@@ -894,7 +894,7 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
+ 	int ret;
+ 
+ 	if (!advk_pcie_valid_device(pcie, bus, devfn)) {
+-		*val = 0xffffffff;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_DEVICE_NOT_FOUND;
+ 	}
+ 
+@@ -920,7 +920,7 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
+ 			*val = CFG_RD_CRS_VAL;
+ 			return PCIBIOS_SUCCESSFUL;
+ 		}
+-		*val = 0xffffffff;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_SET_FAILED;
+ 	}
+ 
+@@ -955,14 +955,14 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
+ 			*val = CFG_RD_CRS_VAL;
+ 			return PCIBIOS_SUCCESSFUL;
+ 		}
+-		*val = 0xffffffff;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_SET_FAILED;
+ 	}
+ 
+ 	/* Check PIO status and get the read result */
+ 	ret = advk_pcie_check_pio_status(pcie, allow_crs, val);
+ 	if (ret < 0) {
+-		*val = 0xffffffff;
++		SET_PCI_ERROR_RESPONSE(val);
+ 		return PCIBIOS_SET_FAILED;
+ 	}
+ 
+-- 
+2.25.1
+

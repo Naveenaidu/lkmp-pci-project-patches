@@ -1,0 +1,41 @@
+From 3904ee51ce1e4b211a24bb823b79fcfba4cd3836 Mon Sep 17 00:00:00 2001
+Message-Id: <3904ee51ce1e4b211a24bb823b79fcfba4cd3836.1632854879.git.naveennaidu479@gmail.com>
+In-Reply-To: <cover.1632854879.git.naveennaidu479@gmail.com>
+References: <cover.1632854879.git.naveennaidu479@gmail.com>
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Tue, 28 Sep 2021 00:52:32 +0530
+Subject: [PATCH 15/22] PCI: vmd: Use RESPONSE_IS_PCI_ERROR() to check read
+ from hardware
+To: bjorn@helgaas.com
+
+An MMIO read from a PCI device that doesn't exist or doesn't respond
+causes a PCI error.  There's no real data to return to satisfy the
+CPU read, so most hardware fabricates ~0 data.
+
+Use RESPONSE_IS_PCI_ERROR() to check the response we get when we read
+data from hardware.
+
+This helps unify PCI error response checking and make error checks
+consistent and easier to find.
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/controller/vmd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pci/controller/vmd.c b/drivers/pci/controller/vmd.c
+index a5987e52700e..db81bc4cfe8c 100644
+--- a/drivers/pci/controller/vmd.c
++++ b/drivers/pci/controller/vmd.c
+@@ -538,7 +538,7 @@ static int vmd_get_phys_offsets(struct vmd_dev *vmd, bool native_hint,
+ 		int ret;
+ 
+ 		ret = pci_read_config_dword(dev, PCI_REG_VMLOCK, &vmlock);
+-		if (ret || vmlock == ~0)
++		if (ret || RESPONSE_IS_PCI_ERROR(&vmlock))
+ 			return -ENODEV;
+ 
+ 		if (MB2_SHADOW_EN(vmlock)) {
+-- 
+2.25.1
+
