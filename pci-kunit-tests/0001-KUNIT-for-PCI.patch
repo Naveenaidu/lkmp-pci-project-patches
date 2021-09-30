@@ -1,0 +1,110 @@
+From c63553ea9a8e7f777e59db2e18a4478660bfa647 Mon Sep 17 00:00:00 2001
+From: Naveen Naidu <naveennaidu479@gmail.com>
+Date: Thu, 30 Sep 2021 22:02:30 +0530
+Subject: [PATCH] KUNIT for PCI
+
+Signed-off-by: Naveen Naidu <naveennaidu479@gmail.com>
+---
+ drivers/pci/Kconfig          |  5 +++
+ drivers/pci/Makefile         |  2 ++
+ drivers/pci/pci-probe-test.c | 61 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+)
+ create mode 100644 drivers/pci/pci-probe-test.c
+
+diff --git a/drivers/pci/Kconfig b/drivers/pci/Kconfig
+index 0c473d75e625..b48ddc7ce650 100644
+--- a/drivers/pci/Kconfig
++++ b/drivers/pci/Kconfig
+@@ -252,6 +252,11 @@ config PCIE_BUS_PEER2PEER
+ 
+ endchoice
+ 
++config PCI_PROBE_KUNIT_TEST
++	tristate "KUnit test for __pci_read_base() in probe.c" if !KUNIT_ALL_TESTS
++	depends on PCI && KUNIT=y
++	default KUNIT_ALL_TESTS
++
+ source "drivers/pci/hotplug/Kconfig"
+ source "drivers/pci/controller/Kconfig"
+ source "drivers/pci/endpoint/Kconfig"
+diff --git a/drivers/pci/Makefile b/drivers/pci/Makefile
+index d62c4ac4ae1b..e704e5c13fbd 100644
+--- a/drivers/pci/Makefile
++++ b/drivers/pci/Makefile
+@@ -36,4 +36,6 @@ obj-$(CONFIG_PCI_ENDPOINT)	+= endpoint/
+ obj-y				+= controller/
+ obj-y				+= switch/
+ 
++# Test files
++obj-$(CONFIG_PCI_PROBE_KUNIT_TEST) += pci-probe-test.o
+ subdir-ccflags-$(CONFIG_PCI_DEBUG) := -DDEBUG
+diff --git a/drivers/pci/pci-probe-test.c b/drivers/pci/pci-probe-test.c
+new file mode 100644
+index 000000000000..b9183e9e923a
+--- /dev/null
++++ b/drivers/pci/pci-probe-test.c
+@@ -0,0 +1,61 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <kunit/test.h>
++#include <linux/pci.h>
++
++/*
++ * Test 'struct resource'
++ */
++static void resource_basic_test(struct kunit *test)
++{
++	static struct resource bus = {
++		.name	= "FAKE PCI BUS IO",
++		.start	= 0x100,
++		.end	= 0x300,
++		.flags	= IORESOURCE_IO,
++	};
++
++	static struct resource child_dev = {
++		.name	= "FAKE CHILD DEVICE",
++		.start	= 0x110,
++		.end	= 0x120,
++		.flags	= IORESOURCE_IO,
++	};
++
++	static struct resource sibling_dev = {
++		.name	= "FAKE SIBLING DEVICE",
++		.start	= 0x140,
++		.end	= 0x150,
++		.flags	= IORESOURCE_IO,
++	};
++
++	/* This resource is present in another bus */
++	static struct resource external_dev = {
++		.name	= "FAKE EXTERNAL DEVICE",
++		.start	= 0x340,
++		.end	= 0x350,
++		.flags	= IORESOURCE_IO,
++	};
++
++	KUNIT_EXPECT_EQ(test, IORESOURCE_IO, resource_type(&bus));
++}
++
++static int example_test_init(struct kunit *test)
++{
++	kunit_info(test, "initializing\n");
++	return 0;
++}
++
++static struct kunit_case pci_probe_test_cases[] = {
++	KUNIT_CASE(resource_basic_test),
++	{}
++};
++
++static struct kunit_suite pci_probe_test_suite = {
++	.name = "pci-probe",
++	.init = example_test_init,
++	.test_cases = pci_probe_test_cases,
++};
++
++kunit_test_suites(&pci_probe_test_suite);
++
++MODULE_LICENSE("GPL v2");
+-- 
+2.25.1
+
